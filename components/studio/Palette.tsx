@@ -13,10 +13,15 @@ import {
   type FootprintSize,
   type PartFamily,
 } from "@/lib/bricks/families";
+import { MAX_CUSTOM_FOOTPRINT } from "@/lib/bricks/units";
 import { useEditorStore } from "@/store/editorStore";
 
 const DEFAULT_FAMILY: PartFamily = "brick";
 const DEFAULT_SIZE: FootprintSize = { w: 1, d: 1 };
+
+const SHORT_LABEL: Partial<Record<PartFamily, string>> = {
+  "round-plate": "R-plate",
+};
 
 export function Palette() {
   const activePartId = useEditorStore((s) => s.activePartId);
@@ -73,6 +78,8 @@ export function Palette() {
   const resolvedPart = resolvedId ? getPart(resolvedId) : undefined;
   const canStuds = hasTopStudsOption(family, activeSize.w, activeSize.d, true);
   const canFlat = hasTopStudsOption(family, activeSize.w, activeSize.d, false);
+  const showTopToggle = canStuds && canFlat;
+  const armed = !!activePartId && !!resolvedPart;
 
   const applyPart = (
     nextFamily: PartFamily,
@@ -122,237 +129,358 @@ export function Palette() {
     applyPart(next, nextSize, topStuds, "presets");
   };
 
+  const setCustomDim = (next: { w?: number; d?: number }) => {
+    const w = next.w ?? customW;
+    const d = next.d ?? customD;
+    setCustomW(w);
+    setCustomD(d);
+    applyPart(family, { w, d }, topStuds, "custom");
+  };
+
   return (
-    <aside className="ff-hud-panel pointer-events-auto flex h-full w-64 flex-col gap-3 overflow-hidden rounded-xl p-3">
+    <aside className="ff-hud-panel pointer-events-auto flex w-72 flex-col gap-3 self-start rounded-xl p-3">
       <div>
         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--ff-accent)]">
           Parts
         </p>
         <h2 className="font-display text-lg font-bold leading-tight">Brick bay</h2>
-        <div className="mt-2 flex items-center gap-2">
+        <div
+          className="ff-well relative mt-2 flex items-center gap-2.5 overflow-hidden rounded-lg px-2.5 py-2"
+          style={{
+            boxShadow: armed
+              ? `inset 3px 0 0 ${resolvedPart?.colorDefault ?? "var(--ff-accent)"}`
+              : undefined,
+          }}
+        >
           <span
-            className={`h-7 w-7 shrink-0 border border-[var(--ff-border)] shadow-inner ${
-              family === "round" || family === "round-plate"
-                ? "rounded-full"
-                : "rounded-md"
-            }`}
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md"
             style={{
-              background: resolvedPart?.colorDefault ?? "var(--ff-panel-2)",
+              background: armed
+                ? (resolvedPart?.colorDefault ?? "var(--ff-panel-2)")
+                : "var(--ff-panel-2)",
+              boxShadow: armed
+                ? "inset 0 1px 0 rgba(255,255,255,0.22), 0 1px 2px rgba(0,0,0,0.2)"
+                : "inset 0 1px 2px rgba(0,0,0,0.12)",
             }}
-          />
-          <p className="min-w-0 truncate text-xs text-[var(--ff-muted)]">
-            {activePartId && resolvedPart
-              ? resolvedPart.label
-              : "Pick a shape to place"}
-          </p>
+          >
+            <ShapeGlyph
+              family={family}
+              active={armed}
+              color={armed ? "rgba(255,255,255,0.95)" : undefined}
+              size="lg"
+            />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ff-accent)]">
+              {armed ? "Ready to place" : "No part loaded"}
+            </p>
+            <p className="truncate font-display text-sm font-bold leading-tight">
+              {armed && resolvedPart ? resolvedPart.label : "Pick a shape"}
+            </p>
+          </div>
         </div>
       </div>
 
-      <div className="flex-1 space-y-4 overflow-y-auto pr-1">
-        <section className="space-y-2">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ff-muted)]">
-            Shape
-          </p>
-          <div className="grid grid-cols-2 gap-1.5">
-            {PART_FAMILIES.map((f) => {
-              const active = family === f.id && !!activePartId;
+      <section className="space-y-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ff-muted)]">
+          Shape
+        </p>
+        <div className="grid grid-cols-5 gap-1.5">
+          {PART_FAMILIES.map((f) => {
+            const active = family === f.id && !!activePartId;
+            const swatch = familySwatch(f.id);
+            return (
+              <button
+                key={f.id}
+                type="button"
+                title={`${f.label} · ${f.hint}`}
+                className={`ff-palette-item flex min-w-0 flex-col items-center gap-1 rounded-lg p-0.5 ${
+                  active ? "is-active" : ""
+                }`}
+                onClick={() => onShapeClick(f.id)}
+              >
+                <span
+                  className="flex h-11 w-full items-center justify-center rounded-md"
+                  style={{
+                    background: active
+                      ? `color-mix(in srgb, ${swatch} 34%, var(--ff-panel))`
+                      : `color-mix(in srgb, ${swatch} 14%, var(--ff-panel-2))`,
+                    boxShadow: active
+                      ? `inset 0 0 0 1px ${swatch}`
+                      : "inset 0 1px 2px rgba(0,0,0,0.12)",
+                  }}
+                >
+                  <ShapeGlyph
+                    family={f.id}
+                    active={active}
+                    color={swatch}
+                    size="md"
+                  />
+                </span>
+                <span
+                  className={`w-full px-0.5 text-center text-[10px] font-semibold leading-[1.15] ${
+                    active ? "text-[var(--ff-text)]" : "text-[var(--ff-muted)]"
+                  }`}
+                >
+                  {SHORT_LABEL[f.id] ?? f.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </section>
+
+      <section className="space-y-1.5">
+        <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ff-muted)]">
+          Size
+        </p>
+        {sizeMode === "custom" && customEnabled ? (
+          <div className="ff-well flex items-center gap-1.5 rounded-lg p-1">
+            <Stepper
+              label="W"
+              value={customW}
+              onChange={(w) => setCustomDim({ w })}
+            />
+            <Stepper
+              label="D"
+              value={customD}
+              onChange={(d) => setCustomDim({ d })}
+            />
+            <button
+              type="button"
+              className="btn btn-ghost btn-xs h-8 min-h-0 px-2"
+              onClick={() => applyPart(family, size, topStuds, "presets")}
+            >
+              Presets
+            </button>
+          </div>
+        ) : (
+          <div className="ff-well flex overflow-hidden rounded-lg p-0.5">
+            {sizes.map((s) => {
+              const selected = s.w === size.w && s.d === size.d;
+              const lit = selected && armed && sizeMode === "presets";
               return (
                 <button
-                  key={f.id}
+                  key={`${s.w}x${s.d}`}
                   type="button"
-                  className={`ff-palette-item flex flex-col items-start gap-1 rounded-lg border px-2.5 py-2 text-left ${
-                    active
-                      ? "is-active border-[var(--ff-accent)]"
-                      : "border-[var(--ff-border)] bg-[var(--ff-panel-2)]"
+                  className={`ff-palette-item flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-md py-1.5 ${
+                    lit ? "is-active bg-[var(--ff-panel)]" : ""
                   }`}
-                  onClick={() => onShapeClick(f.id)}
+                  onClick={() => applyPart(family, s, topStuds, "presets")}
                 >
-                  <ShapeGlyph family={f.id} active={active} />
-                  <span className="text-sm font-medium leading-tight">{f.label}</span>
-                  <span className="text-[10px] text-[var(--ff-muted)]">{f.hint}</span>
+                  <SizeGlyph
+                    size={s}
+                    round={isRoundFamily(family)}
+                    color={
+                      lit
+                        ? (resolvedPart?.colorDefault ?? "var(--ff-accent)")
+                        : "var(--ff-muted)"
+                    }
+                  />
+                  <span className="text-[10px] font-semibold tabular-nums">
+                    {sizeLabel(s)}
+                  </span>
                 </button>
               );
             })}
-          </div>
-        </section>
-
-        <section className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ff-muted)]">
-              Size
-            </p>
             {customEnabled && (
-              <div className="flex gap-1">
-                <button
-                  type="button"
-                  className={`btn btn-xs ${sizeMode === "presets" ? "ff-btn-primary" : "btn-ghost"}`}
-                  onClick={() => {
-                    setSizeMode("presets");
-                    applyPart(family, size, topStuds, "presets");
-                  }}
-                >
-                  Presets
-                </button>
-                <button
-                  type="button"
-                  className={`btn btn-xs ${sizeMode === "custom" ? "ff-btn-primary" : "btn-ghost"}`}
-                  onClick={() => {
-                    setSizeMode("custom");
-                    applyPart(
-                      family,
-                      { w: customW, d: customD },
-                      topStuds,
-                      "custom",
-                    );
-                  }}
-                >
-                  Custom
-                </button>
-              </div>
+              <button
+                type="button"
+                className="ff-palette-item flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md py-1.5 text-[var(--ff-muted)]"
+                onClick={() =>
+                  applyPart(
+                    family,
+                    { w: customW, d: customD },
+                    topStuds,
+                    "custom",
+                  )
+                }
+              >
+                <span className="font-display text-base leading-none">+</span>
+                <span className="text-[10px] font-semibold">Custom</span>
+              </button>
             )}
           </div>
+        )}
+      </section>
 
-          {sizeMode === "custom" && customEnabled ? (
-            <div className="space-y-2 rounded-lg border border-[var(--ff-border)] bg-[var(--ff-panel-2)] p-2.5">
-              <label className="flex items-center justify-between gap-2 text-xs">
-                <span className="text-[var(--ff-muted)]">Width (studs)</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={8}
-                  className="input input-xs w-16 border-[var(--ff-border)] bg-[var(--ff-bg)]"
-                  value={customW}
-                  onChange={(e) => {
-                    const w = Math.min(
-                      8,
-                      Math.max(1, Number(e.target.value) || 1),
-                    );
-                    setCustomW(w);
-                    applyPart(family, { w, d: customD }, topStuds, "custom");
-                  }}
-                />
-              </label>
-              <label className="flex items-center justify-between gap-2 text-xs">
-                <span className="text-[var(--ff-muted)]">Depth (studs)</span>
-                <input
-                  type="number"
-                  min={1}
-                  max={8}
-                  className="input input-xs w-16 border-[var(--ff-border)] bg-[var(--ff-bg)]"
-                  value={customD}
-                  onChange={(e) => {
-                    const d = Math.min(
-                      8,
-                      Math.max(1, Number(e.target.value) || 1),
-                    );
-                    setCustomD(d);
-                    applyPart(family, { w: customW, d }, topStuds, "custom");
-                  }}
-                />
-              </label>
-              <p className="text-[10px] text-[var(--ff-muted)]">
-                Custom {sizeLabel({ w: customW, d: customD })} · 1–8 studs
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 gap-1.5">
-              {sizes.map((s) => {
-                const selected = s.w === size.w && s.d === size.d;
-                return (
-                  <button
-                    key={`${s.w}x${s.d}`}
-                    type="button"
-                    className={`ff-palette-item flex items-center gap-2.5 rounded-lg border px-2.5 py-2 text-left ${
-                      selected && activePartId && sizeMode === "presets"
-                        ? "is-active border-[var(--ff-accent)]"
-                        : "border-[var(--ff-border)] bg-[var(--ff-panel-2)]"
-                    }`}
-                    onClick={() => applyPart(family, s, topStuds, "presets")}
-                  >
-                    <SizeGlyph
-                      size={s}
-                      round={family === "round" || family === "round-plate"}
-                      color={
-                        resolvePartId(family, s.w, s.d, topStuds)
-                          ? getPart(
-                              resolvePartId(family, s.w, s.d, topStuds)!,
-                            )?.colorDefault
-                          : undefined
-                      }
-                    />
-                    <span className="text-sm font-medium">{sizeLabel(s)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </section>
-
-        <section className="space-y-2">
+      {showTopToggle && (
+        <section className="space-y-1.5">
           <p className="text-[11px] font-semibold uppercase tracking-wider text-[var(--ff-muted)]">
             Top
           </p>
-          <div className="flex gap-1.5">
+          <div
+            className="ff-well flex rounded-lg p-0.5"
+            title="Flat = no top connector; can still snap onto studs below."
+          >
             <button
               type="button"
-              disabled={!canStuds}
-              className={`btn btn-sm flex-1 ${
-                topStuds && activePartId ? "ff-btn-primary" : "btn-ghost"
+              className={`h-8 flex-1 rounded-md text-xs font-semibold transition-[background-color,color,box-shadow] duration-200 ${
+                topStuds && armed
+                  ? "bg-[var(--ff-accent)] text-[#14110b] shadow-sm"
+                  : "text-[var(--ff-muted)] hover:text-[var(--ff-text)]"
               }`}
-              onClick={() =>
-                applyPart(family, activeSize, true, sizeMode)
-              }
+              onClick={() => applyPart(family, activeSize, true, sizeMode)}
             >
               Studs
             </button>
             <button
               type="button"
-              disabled={!canFlat}
-              className={`btn btn-sm flex-1 ${
-                !topStuds && activePartId ? "ff-btn-primary" : "btn-ghost"
+              className={`h-8 flex-1 rounded-md text-xs font-semibold transition-[background-color,color,box-shadow] duration-200 ${
+                !topStuds && armed
+                  ? "bg-[var(--ff-accent)] text-[#14110b] shadow-sm"
+                  : "text-[var(--ff-muted)] hover:text-[var(--ff-text)]"
               }`}
-              onClick={() =>
-                applyPart(family, activeSize, false, sizeMode)
-              }
+              onClick={() => applyPart(family, activeSize, false, sizeMode)}
             >
               Flat
             </button>
           </div>
-          <p className="text-[11px] leading-snug text-[var(--ff-muted)]">
-            Flat = no top connector; can still snap onto studs below.
-          </p>
         </section>
-      </div>
+      )}
     </aside>
+  );
+}
+
+function familySwatch(family: PartFamily): string {
+  const sizes = listSizes(family);
+  const first = sizes[0] ?? DEFAULT_SIZE;
+  const id =
+    resolvePartId(family, first.w, first.d, true) ??
+    resolvePartId(family, first.w, first.d, false);
+  return (id && getPart(id)?.colorDefault) || "var(--ff-muted)";
+}
+
+function Stepper({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  return (
+    <div className="flex h-8 min-w-0 flex-1 items-center justify-between rounded-md bg-[var(--ff-panel)] px-1.5">
+      <span className="text-[10px] font-semibold text-[var(--ff-muted)]">
+        {label}
+      </span>
+      <button
+        type="button"
+        className="grid h-6 w-6 place-items-center rounded text-sm leading-none text-[var(--ff-muted)] hover:bg-[var(--ff-panel-2)] hover:text-[var(--ff-text)]"
+        onClick={() => onChange(Math.max(1, value - 1))}
+        aria-label={`Decrease ${label}`}
+      >
+        −
+      </button>
+      <span className="w-4 text-center text-xs font-bold tabular-nums">
+        {value}
+      </span>
+      <button
+        type="button"
+        className="grid h-6 w-6 place-items-center rounded text-sm leading-none text-[var(--ff-muted)] hover:bg-[var(--ff-panel-2)] hover:text-[var(--ff-text)]"
+        onClick={() => onChange(Math.min(MAX_CUSTOM_FOOTPRINT, value + 1))}
+        aria-label={`Increase ${label}`}
+      >
+        +
+      </button>
+    </div>
+  );
+}
+
+function isRoundFamily(family: PartFamily): boolean {
+  return (
+    family === "round" ||
+    family === "round-plate" ||
+    family === "cone" ||
+    family === "sphere"
   );
 }
 
 function ShapeGlyph({
   family,
   active,
+  color,
+  size = "md",
 }: {
   family: PartFamily;
   active: boolean;
+  color?: string;
+  size?: "md" | "lg";
 }) {
-  const fill = active ? "var(--ff-accent)" : "var(--ff-muted)";
-  if (family === "round" || family === "round-plate") {
-    return (
-      <span
-        className={`block rounded-full border border-black/10 ${
-          family === "round-plate" ? "h-3 w-6" : "h-5 w-5"
-        }`}
-        style={{ background: fill, opacity: active ? 1 : 0.55 }}
-      />
-    );
+  const fill = color ?? (active ? "var(--ff-accent)" : "var(--ff-muted)");
+  const style = { background: fill, opacity: color || active ? 1 : 0.7 };
+  const lg = size === "lg";
+  switch (family) {
+    case "round":
+    case "sphere":
+      return (
+        <span
+          className={`block rounded-full ${lg ? "h-6 w-6" : "h-5 w-5"}`}
+          style={style}
+        />
+      );
+    case "round-plate":
+      return (
+        <span
+          className={`block rounded-full ${lg ? "h-3 w-7" : "h-2.5 w-6"}`}
+          style={style}
+        />
+      );
+    case "plate":
+      return (
+        <span
+          className={`block rounded-sm ${lg ? "h-2.5 w-7" : "h-2 w-6"}`}
+          style={style}
+        />
+      );
+    case "cube":
+      return (
+        <span
+          className={`block rounded-sm ${lg ? "h-6 w-6" : "h-5 w-5"}`}
+          style={style}
+        />
+      );
+    case "trapezium":
+      return (
+        <span
+          className={lg ? "block h-6 w-7" : "block h-5 w-6"}
+          style={{
+            ...style,
+            clipPath: "polygon(14% 0, 86% 0, 100% 100%, 0 100%)",
+          }}
+        />
+      );
+    case "slope":
+      return (
+        <span
+          className={lg ? "block h-6 w-7" : "block h-5 w-6"}
+          style={{
+            ...style,
+            clipPath: "polygon(100% 0, 100% 100%, 0 100%)",
+          }}
+        />
+      );
+    case "cone":
+    case "pyramid":
+      return (
+        <span
+          className={lg ? "block h-6 w-6" : "block h-5 w-5"}
+          style={{
+            ...style,
+            clipPath: "polygon(50% 0, 100% 100%, 0 100%)",
+          }}
+        />
+      );
+    case "brick":
+    default:
+      return (
+        <span
+          className={`block rounded-sm ${lg ? "h-6 w-7" : "h-5 w-6"}`}
+          style={style}
+        />
+      );
   }
-  return (
-    <span
-      className={`block rounded-sm border border-black/10 ${
-        family === "plate" ? "h-2.5 w-7" : "h-5 w-6"
-      }`}
-      style={{ background: fill, opacity: active ? 1 : 0.55 }}
-    />
-  );
 }
 
 function SizeGlyph({
@@ -365,19 +493,18 @@ function SizeGlyph({
   color?: string;
 }) {
   const max = Math.max(size.w, size.d);
-  const unit = 18 / max;
-  const w = Math.max(8, size.w * unit);
-  const h = Math.max(8, size.d * unit);
+  const unit = 14 / max;
+  const w = Math.max(6, size.w * unit);
+  const h = Math.max(6, size.d * unit);
   return (
-    <span className="flex h-8 w-8 shrink-0 items-center justify-center">
+    <span className="flex h-5 w-6 items-center justify-center">
       <span
-        className={`border border-black/15 shadow-inner ${
-          round ? "rounded-full" : "rounded-sm"
-        }`}
+        className={round ? "rounded-full" : "rounded-[2px]"}
         style={{
           width: w,
           height: round ? w : h,
-          background: color ?? "var(--ff-border)",
+          background: color ?? "var(--ff-muted)",
+          opacity: 0.9,
         }}
       />
     </span>

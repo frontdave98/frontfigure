@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { GLTFExporter } from "three/examples/jsm/exporters/GLTFExporter.js";
 import { requirePart } from "@/lib/bricks/catalog";
+import { createPartGeometry, studLayout } from "@/lib/bricks/geometry";
 import { GLASS, resolveFinish } from "@/lib/bricks/material";
 import { STUD_HEIGHT, STUD_RADIUS } from "@/lib/bricks/units";
 import type { PlacedBrick, Scene } from "@/types/project";
@@ -28,8 +29,6 @@ function createBrickMaterial(brick: PlacedBrick): THREE.Material {
 
 function buildBrickObject(brick: PlacedBrick): THREE.Group {
   const part = requirePart(brick.partId);
-  const w = part.footprint.w;
-  const d = part.footprint.d;
   const group = new THREE.Group();
   group.position.set(
     brick.position.x,
@@ -39,34 +38,16 @@ function buildBrickObject(brick: PlacedBrick): THREE.Group {
   group.rotation.y = (brick.rotationY * Math.PI) / 180;
 
   const bodyMat = createBrickMaterial(brick);
-  const isCylinder = part.shape === "cylinder";
-  const bodyGeom = isCylinder
-    ? new THREE.CylinderGeometry(
-        0.48 * Math.min(w, d),
-        0.48 * Math.min(w, d),
-        part.height,
-        24,
-      )
-    : new THREE.BoxGeometry(w * 0.98, part.height, d * 0.98);
-
-  const body = new THREE.Mesh(bodyGeom, bodyMat);
+  const body = new THREE.Mesh(createPartGeometry(part), bodyMat);
   group.add(body);
 
-  if (part.topStuds) {
-    for (let ix = 0; ix < w; ix++) {
-      for (let iz = 0; iz < d; iz++) {
-        const stud = new THREE.Mesh(
-          new THREE.CylinderGeometry(STUD_RADIUS, STUD_RADIUS, STUD_HEIGHT, 16),
-          bodyMat.clone(),
-        );
-        stud.position.set(
-          -w / 2 + 0.5 + ix,
-          part.height / 2 + STUD_HEIGHT / 2,
-          -d / 2 + 0.5 + iz,
-        );
-        group.add(stud);
-      }
-    }
+  for (const s of studLayout(part)) {
+    const stud = new THREE.Mesh(
+      new THREE.CylinderGeometry(STUD_RADIUS, STUD_RADIUS, STUD_HEIGHT, 16),
+      bodyMat.clone(),
+    );
+    stud.position.set(s.x, part.height / 2 + STUD_HEIGHT / 2, s.z);
+    group.add(stud);
   }
 
   return group;

@@ -3,10 +3,21 @@ import {
   getPart,
   makeCustomBoxPartId,
   type BrickPart,
+  type CustomBoxKind,
 } from "./catalog";
-import { BRICK_HEIGHT, PLATE_HEIGHT } from "./units";
+import { BRICK_HEIGHT, CUBE_HEIGHT, MAX_CUSTOM_FOOTPRINT, PLATE_HEIGHT } from "./units";
 
-export type PartFamily = "brick" | "plate" | "round" | "round-plate";
+export type PartFamily =
+  | "brick"
+  | "plate"
+  | "round"
+  | "round-plate"
+  | "cube"
+  | "trapezium"
+  | "slope"
+  | "cone"
+  | "pyramid"
+  | "sphere";
 
 export type FootprintSize = { w: number; d: number };
 
@@ -19,6 +30,12 @@ export const PART_FAMILIES: {
   { id: "plate", label: "Plate", hint: "Box · thin" },
   { id: "round", label: "Round", hint: "Cylinder · tall" },
   { id: "round-plate", label: "Round plate", hint: "Cylinder · thin" },
+  { id: "cube", label: "Cube", hint: "Box · 1 stud" },
+  { id: "trapezium", label: "Trapezium", hint: "Wide base · flat top" },
+  { id: "slope", label: "Slope", hint: "Wedge · rises on width" },
+  { id: "cone", label: "Cone", hint: "Tapered round" },
+  { id: "pyramid", label: "Pyramid", hint: "Tapered box" },
+  { id: "sphere", label: "Sphere", hint: "Ball" },
 ];
 
 function matchesFamily(part: BrickPart, family: PartFamily): boolean {
@@ -35,6 +52,8 @@ function matchesFamily(part: BrickPart, family: PartFamily): boolean {
         part.shape === "box" &&
         part.height === PLATE_HEIGHT
       );
+    case "cube":
+      return part.shape === "box" && part.height === CUBE_HEIGHT;
     case "round":
       return (
         part.category === "round" &&
@@ -47,6 +66,16 @@ function matchesFamily(part: BrickPart, family: PartFamily): boolean {
         part.shape === "cylinder" &&
         part.height === PLATE_HEIGHT
       );
+    case "trapezium":
+      return part.shape === "trapezoid";
+    case "slope":
+      return part.shape === "wedge";
+    case "cone":
+      return part.shape === "cone";
+    case "pyramid":
+      return part.shape === "pyramid";
+    case "sphere":
+      return part.shape === "sphere";
   }
 }
 
@@ -64,7 +93,7 @@ export function listSizes(family: PartFamily): FootprintSize[] {
 }
 
 export function supportsCustomSize(family: PartFamily): boolean {
-  return family === "brick" || family === "plate";
+  return family === "brick" || family === "plate" || family === "cube";
 }
 
 export function resolvePartId(
@@ -82,13 +111,13 @@ export function resolvePartId(
   );
   if (found) return found.id;
   if (
-    (family === "brick" || family === "plate") &&
+    supportsCustomSize(family) &&
     w >= 1 &&
-    w <= 8 &&
+    w <= MAX_CUSTOM_FOOTPRINT &&
     d >= 1 &&
-    d <= 8
+    d <= MAX_CUSTOM_FOOTPRINT
   ) {
-    return makeCustomBoxPartId(family, w, d, topStuds);
+    return makeCustomBoxPartId(family as CustomBoxKind, w, d, topStuds);
   }
   return null;
 }

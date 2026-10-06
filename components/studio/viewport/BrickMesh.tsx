@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import type { ThreeEvent } from "@react-three/fiber";
 import type { PlacedBrick } from "@/types/project";
 import { requirePart } from "@/lib/bricks/catalog";
+import { createPartGeometry, studLayout } from "@/lib/bricks/geometry";
 import { GLASS, resolveFinish } from "@/lib/bricks/material";
 import { STUD_HEIGHT, STUD_RADIUS } from "@/lib/bricks/units";
 
@@ -76,25 +77,15 @@ export function BrickMesh({
   onPointerDown,
 }: Props) {
   const part = requirePart(brick.partId);
-  const w = part.footprint.w;
-  const d = part.footprint.d;
   const finish = resolveFinish(brick.finish);
-  const isCylinder = part.shape === "cylinder";
-  const cylinderRadius = 0.48 * Math.min(w, d);
 
-  const studs = useMemo(() => {
-    if (!part.topStuds) return [] as { x: number; z: number }[];
-    const list: { x: number; z: number }[] = [];
-    for (let ix = 0; ix < w; ix++) {
-      for (let iz = 0; iz < d; iz++) {
-        list.push({
-          x: -w / 2 + 0.5 + ix,
-          z: -d / 2 + 0.5 + iz,
-        });
-      }
-    }
-    return list;
-  }, [w, d, part.topStuds]);
+  const geometry = useMemo(
+    () => createPartGeometry(part),
+    [part.id, part.shape, part.footprint.w, part.footprint.d, part.height],
+  );
+  const studs = useMemo(() => studLayout(part), [part]);
+
+  useEffect(() => () => geometry.dispose(), [geometry]);
 
   const color =
     selected && finish === "opaque" && !ghost ? "#ffe08a" : brick.color;
@@ -120,14 +111,11 @@ export function BrickMesh({
       onPointerMove={onPointerMove}
       onPointerDown={onPointerDown}
     >
-      <mesh castShadow={finish === "opaque"} receiveShadow>
-        {isCylinder ? (
-          <cylinderGeometry
-            args={[cylinderRadius, cylinderRadius, part.height, 24]}
-          />
-        ) : (
-          <boxGeometry args={[w * 0.98, part.height, d * 0.98]} />
-        )}
+      <mesh
+        geometry={geometry}
+        castShadow={finish === "opaque"}
+        receiveShadow
+      >
         {material}
       </mesh>
       {studs.map((s, i) => (
