@@ -1,8 +1,9 @@
 "use client";
 
-import { ArrowLeft, Laptop } from "@carbon/icons-react";
+import { ArrowLeft } from "@carbon/icons-react";
 import Link from "next/link";
 import { useEffect, useState, type ReactNode } from "react";
+import { BrandLockup } from "@/components/brand/BrandLockup";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 const DESKTOP_QUERY = "(min-width: 1024px)";
@@ -39,14 +40,10 @@ export function DesktopOnlyGate({ children }: Props) {
         </div>
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 text-center">
           <div className="ff-hud-panel w-full max-w-md rounded-2xl px-6 py-8">
-            <Laptop
-              size={36}
-              className="ff-icon mx-auto text-[var(--ff-accent)]"
-            />
-            <p className="mt-4 font-display text-2xl font-extrabold tracking-tight text-[var(--ff-accent)]">
-              Frontfigure
-            </p>
-            <h1 className="mt-3 font-display text-xl font-bold text-[var(--ff-text)]">
+            <div className="flex justify-center">
+              <BrandLockup size="md" />
+            </div>
+            <h1 className="mt-5 font-display text-xl font-bold text-[var(--ff-text)]">
               Studio needs a desktop screen
             </h1>
             <p className="mt-3 text-sm leading-relaxed text-[var(--ff-muted)]">

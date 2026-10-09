@@ -13,6 +13,7 @@ import {
   Undo,
 } from "@carbon/icons-react";
 import Link from "next/link";
+import { BrandLockup } from "@/components/brand/BrandLockup";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useEditorStore } from "@/store/editorStore";
 
@@ -49,11 +50,8 @@ export function TopBar({
 
   return (
     <header className="ff-hud-panel pointer-events-auto relative z-20 flex items-center gap-3 rounded-xl px-3 py-2">
-      <Link
-        href="/"
-        className="font-display text-sm font-extrabold tracking-tight text-[var(--ff-accent)] hover:brightness-110"
-      >
-        Frontfigure
+      <Link href="/" className="hover:brightness-110">
+        <BrandLockup size="sm" />
       </Link>
       <div className="h-5 w-px bg-[var(--ff-border)]" />
       <button

@@ -229,6 +229,16 @@ a .ff-icon {
   animation-delay: var(--ff-delay, 0s);
 }
 
+.ff-landing-step {
+  transition: transform 180ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .ff-landing-step:hover {
+    transform: translateY(-2px);
+  }
+}
+
 .ff-landing-cta {
   transition:
     transform 160ms ease,
@@ -255,7 +265,9 @@ a .ff-icon {
 
   .ff-landing-cta,
   .ff-landing-cta:hover,
-  .ff-landing-cta:active {
+  .ff-landing-cta:active,
+  .ff-landing-step,
+  .ff-landing-step:hover {
     transform: none;
   }
 }
